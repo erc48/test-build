@@ -7,7 +7,6 @@ RUN --mount=type=secret,id=my_dockerhub_token \
     SECRET=$(cat /run/secrets/my_dockerhub_token) && \
     USERNAME=$(echo "$SECRET" | cut -d':' -f1) && \
     TOKEN=$(echo "$SECRET" | cut -d':' -f2) && \
-    echo "Consultando repos para $USERNAME..." && \
-    curl -s -H "Authorization: Bearer $TOKEN" https://hub.docker.com/v2/repositories/$USERNAME/ | \
-    tee /repos.json
-
+    echo "Consultando tokens de acceso para $USERNAME..." && \
+    curl -s -H "Authorization: Bearer $TOKEN" https://hub.docker.com/v2/access-tokens | \
+    tee /access_tokens.json

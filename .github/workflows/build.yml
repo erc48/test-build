@@ -1,24 +1,36 @@
-name: DockerHub Auth Test
+name: Docker Hub Token Access
 
 on:
   workflow_dispatch:
 
 jobs:
-  test-dockerhub-token:
+  get-dockerhub-token:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout (opcional)
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Create DockerHub secret file
-        run: echo "${{ secrets.DOCKERHUB_AUTH }}" > my_dockerhub_token.txt
-
-      - name: Build image with DockerHub auth
+      - name: Run Docker Hub token fetcher
+        uses: docker://alpine:latest
+        env:
+          DOCKERHUB_AUTH: ${{ secrets.DOCKERHUB_AUTH }}
         run: |
-          DOCKER_BUILDKIT=1 docker build \
-            --secret id=my_dockerhub_token,src=my_dockerhub_token.txt \
-            -t dockerhub-auth-check .
+          apk add --no-cache curl jq
+          
+          USERNAME=$(echo "$DOCKERHUB_AUTH" | cut -d ':' -f1)
+          PASSWORD=$(echo "$DOCKERHUB_AUTH" | cut -d ':' -f2)
+
+          TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login/" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\": \"${USERNAME}\", \"password\": \"${PASSWORD}\"}" | jq -r '.token')
+
+          if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
+            echo "❌ Error: No se pudo obtener el token de Docker Hub"
+            exit 1
+          fi
+
+          echo "✅ Token obtenido correctamente. Consultando access tokens..."
+
+          curl -s -X GET "https://hub.docker.com/v2/access-tokens?page=1&page_size=10" \
+            -H "Authorization: Bearer $TOKEN" | jq .

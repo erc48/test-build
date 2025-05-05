@@ -1,25 +1,29 @@
-# syntax=docker/dockerfile:1.4
-FROM ubuntu:22.04 AS base
+name: Manual Docker Build with Secret
 
-RUN apt-get update && apt-get install -y curl
+on:
+  workflow_dispatch:  # permite ejecución manual
 
-# Simular uso de un secreto (NO se guardará si se usa bien)
-# El secreto se monta como archivo
-FROM base AS build
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-# Usamos --mount para inyectar secreto de forma segura
-RUN --mount=type=secret,id=my_secret \
-    SECRET=$(cat /run/secrets/my_secret) && \
-    echo "Secreto en build: $SECRET"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-# Imagen final
-FROM base
+      - name: Create secret file
+        run: echo "${{ secrets.MY_SECRET }}" > my_secret.txt
 
-# Instalar Python 3.13 en la final (simplificado usando deadsnakes PPA)
-RUN apt-get update && \
-    apt-get install -y software-properties-common && \
-    add-apt-repository ppa:deadsnakes/ppa -y && \
-    apt-get update && \
-    apt-get install -y python3.13
+      - name: Build Docker image with BuildKit and secret
+        run: |
+          DOCKER_BUILDKIT=1 docker build \
+            --secret id=my_secret,src=my_secret.txt \
+            -t ubuntu-python:test .
 
-CMD ["python3.13", "--version"]
+      - name: Show Docker history
+        run: docker history ubuntu-python:test

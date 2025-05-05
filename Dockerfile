@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.4
 FROM curlimages/curl:latest
 
+USER root
+
 RUN --mount=type=secret,id=my_dockerhub_token \
     SECRET=$(cat /run/secrets/my_dockerhub_token) && \
     AUTH=$(echo "$SECRET" | base64) && \

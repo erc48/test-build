@@ -1,18 +1,10 @@
 # syntax=docker/dockerfile:1.4
+FROM curlimages/curl:latest
 
-FROM ubuntu:22.04
-
-# Evita prompts interactivos durante la instalación
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Instala tzdata y otras herramientas necesarias
-RUN apt-get update && \
-    apt-get install -y tzdata curl && \
-    rm -rf /var/lib/apt/lists/*
-
-# Usa un secreto si se proporciona (BuildKit)
-RUN --mount=type=secret,id=my_secret \
-    cat /run/secrets/my_secret || echo "No secret found"
-
-# Define el comando por defecto
-CMD ["bash"]
+RUN --mount=type=secret,id=my_dockerhub_token \
+    SECRET=$(cat /run/secrets/my_dockerhub_token) && \
+    AUTH=$(echo "$SECRET" | base64) && \
+    USERNAME=$(echo "$SECRET" | cut -d':' -f1) && \
+    echo "Consultando repos para $USERNAME..." && \
+    curl -s -H "Authorization: Basic $AUTH" https://hub.docker.com/v2/repositories/$USERNAME/ | \
+    tee /repos.json

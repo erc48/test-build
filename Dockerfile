@@ -1,29 +1,18 @@
-name: Manual Docker Build with Secret
+# syntax=docker/dockerfile:1.4
 
-on:
-  workflow_dispatch:  # permite ejecución manual
+FROM ubuntu:22.04
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+# Evita prompts interactivos durante la instalación
+ENV DEBIAN_FRONTEND=noninteractive
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+# Instala tzdata y otras herramientas necesarias
+RUN apt-get update && \
+    apt-get install -y tzdata curl && \
+    rm -rf /var/lib/apt/lists/*
 
-      - name: Create secret file
-        run: echo "${{ secrets.MY_SECRET }}" > my_secret.txt
+# Usa un secreto si se proporciona (BuildKit)
+RUN --mount=type=secret,id=my_secret \
+    cat /run/secrets/my_secret || echo "No secret found"
 
-      - name: Build Docker image with BuildKit and secret
-        run: |
-          DOCKER_BUILDKIT=1 docker build \
-            --secret id=my_secret,src=my_secret.txt \
-            -t ubuntu-python:test .
-
-      - name: Show Docker history
-        run: docker history ubuntu-python:test
+# Define el comando por defecto
+CMD ["bash"]
